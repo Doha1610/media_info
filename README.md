@@ -51,6 +51,8 @@ media_tool/
 ├── requirements.txt            # Các thư viện Python cần thiết
 ├── run.py                      # File khởi chạy server
 └── README.md                   # Tài liệu hướng dẫn
+
+
 🚀 Hướng dẫn cài đặt
 1. Yêu cầu hệ thống
 Python 3.8 trở lên.
