@@ -52,10 +52,9 @@ media_tool/
 ├── run.py                      # File khởi chạy server
 └── README.md                   # Tài liệu hướng dẫn
 ```
-
 🚀 Hướng dẫn cài đặt
 1. Yêu cầu hệ thống
-Python 3.8 trở lên.
+Python 3.10 trở lên.
 
 FFmpeg (Bắt buộc phải cài đặt để xử lý âm thanh và video).
 
@@ -71,12 +70,21 @@ Mở Terminal/CMD tại thư mục dự án và chạy:
 
 bash
 pip install -r requirements.txt
-4. Cấu hình (Quan trọng)
+4. Cấu hình FFmpeg (Quan trọng)
 Mở file app/config.py, tìm dòng FFMPEG_PATH và sửa lại đường dẫn trỏ tới file ffmpeg.exe trên máy bạn (nếu bạn không dùng biến môi trường PATH).
 
 python
 FFMPEG_PATH = r"D:\ffmpeg-9.0.1-essentials_build\bin\ffmpeg.exe"
-5. Khởi chạy ứng dụng
+5. Cấu hình YouTube API (Để đăng video)
+Truy cập Google Cloud Console, tạo dự án và bật YouTube Data API v3.
+
+Tạo OAuth client ID (chọn loại Desktop app).
+
+Tải file JSON về, đổi tên thành client_secret.json và để vào thư mục gốc dự án.
+
+Chạy tool, bấm nút Đăng YT. Tool sẽ yêu cầu bạn đăng nhập Google để lấy quyền. Sau khi cấp quyền, file token.json sẽ tự động được tạo ra.
+
+6. Khởi chạy ứng dụng
 bash
 python run.py
 Trình duyệt sẽ tự động mở trang web tại địa chỉ: http://127.0.0.1:5000
@@ -94,3 +102,13 @@ Chọn Kích thước và Vị trí (Trái/Giữa/Phải) cho sticker.
 Bấm Tạo Video và đợi trong giây lát. Video sẽ xuất hiện ở khung kết quả để bạn tải về.
 
 💡 Mẹo: Để sticker hiển thị đẹp nhất (không bị viền đen), hãy đảm bảo video sticker của bạn có phông nền màu xanh lá cây (Green Screen). Tool sẽ tự động dùng thuật toán chromakey để xóa phông và giữ lại hình ảnh.
+
+Đăng Video lên YouTube:
+Chuyển sang tab 📁 File.
+
+Bên cạnh mỗi file video .mp4, bấm nút Đăng YT.
+
+Một bảng nhập liệu hiện ra, cho phép bạn nhập Tiêu đề, Mô tả, chọn chế độ (Riêng tư/Công khai) và chọn ngày giờ đăng (nếu muốn hẹn giờ).
+
+Bấm Bắt đầu Đăng và theo dõi tiến trình ngay trên màn hình.
+
