@@ -2,6 +2,8 @@
 import os
 import uuid
 import threading
+import time
+import shutil
 from app.core.youtube_uploader import YouTubeUploader
 from flask import Blueprint, request, jsonify, send_file, send_from_directory
 from app.config import (
@@ -23,6 +25,114 @@ def _log_cb(job_id):
         JOBS[job_id]["log"].append(msg)
     return _cb
 
+# ---------- API TỰ ĐỘNG HÓA TOÀN BỘ QUY TRÌNH ----------
+@bp.route("/api/auto-workflow", methods=["POST"])
+def api_auto_workflow():
+    url = request.form.get("url")
+    position = request.form.get("position", "Đầu")
+    resolution = request.form.get("resolution", "1920x1080")
+    fps = int(request.form.get("fps", 1))
+    sticker_name = request.form.get("sticker_name")
+    sticker_size = int(request.form.get("sticker_size", 400))
+    sticker_pos = request.form.get("sticker_pos", "center")
+    auto_upload = request.form.get("auto_upload") == "true"
+    yt_privacy = request.form.get("yt_privacy", "private")
+    yt_title = request.form.get("yt_title", "Video tự động")
+    
+    image_file = request.files.get("image")
+    music_files = request.files.getlist("music")
+
+    if not url or not image_file:
+        return jsonify({"error": "Vui lòng nhập Link và chọn Ảnh!"}), 400
+
+    job_id = uuid.uuid4().hex
+    JOBS[job_id] = {"log": [], "done": False, "ok": None, "result": None}
+    log = _log_cb(job_id)
+
+    # Lưu file tạm
+    job_temp_dir = os.path.join(TEMP_DIR, job_id)
+    os.makedirs(job_temp_dir, exist_ok=True)
+    
+    image_path = os.path.join(job_temp_dir, f"image_{image_file.filename}")
+    image_file.save(image_path)
+
+    music_paths = []
+    for idx, mf in enumerate(music_files):
+        if mf.filename:
+            mp = os.path.join(job_temp_dir, f"music_{idx}_{mf.filename}")
+            mf.save(mp)
+            music_paths.append(mp)
+
+    def worker():
+        try:
+            # BƯỚC 1: TẢI NHẠC
+            log("=== BƯỚC 1: TẢI NHẠC TỪ LINK ===")
+            dl = Downloader(on_log=log)
+            if not dl.download_audio(url):
+                raise Exception("Tải nhạc thất bại.")
+            
+            # Tìm file mp3 vừa tải
+            time.sleep(1) # Đợi 1 chút để file ghi xong
+            downloaded_files = [os.path.join(DOWNLOADS_DIR, f) for f in os.listdir(DOWNLOADS_DIR) if f.endswith('.mp3')]
+            if not downloaded_files:
+                raise Exception("Không tìm thấy file mp3 nào vừa tải.")
+            latest_audio = max(downloaded_files, key=os.path.getctime)
+            log(f"Đã tải xong: {os.path.basename(latest_audio)}")
+
+            current_audio = latest_audio
+
+            # BƯỚC 2: GHÉP NHẠC (Nếu có)
+            if music_paths:
+                log("=== BƯỚC 2: GHÉP NHẠC CHÈN ===")
+                mixer = AudioMixer(on_log=log)
+                mixed_audio = mixer.insert_music(current_audio, music_paths, position)
+                if not mixed_audio:
+                    raise Exception("Ghép nhạc thất bại.")
+                current_audio = mixed_audio
+                log("Ghép nhạc thành công!")
+
+            # BƯỚC 3: TẠO VIDEO TỪ ẢNH
+            log("=== BƯỚC 3: TẠO VIDEO TỪ ẢNH ===")
+            sticker_path = os.path.join(STICKERS_DIR, sticker_name) if sticker_name else None
+            maker = ImageToVideo(on_log=log)
+            final_video = maker.create(
+                image_in=image_path, 
+                audio_in=current_audio,
+                resolution=resolution, 
+                fps=fps, 
+                sticker_path=sticker_path,
+                sticker_size=sticker_size,
+                sticker_pos=sticker_pos
+            )
+            if not final_video:
+                raise Exception("Tạo video thất bại.")
+            
+            JOBS[job_id]["result"] = os.path.basename(final_video)
+            log("Tạo video thành công!")
+
+            # BƯỚC 4: ĐĂNG YOUTUBE (Nếu có tích)
+            if auto_upload:
+                log("=== BƯỚC 4: ĐĂNG LÊN YOUTUBE ===")
+                uploader = YouTubeUploader(on_log=log)
+                vid_id = uploader.upload_video(final_video, yt_title, "Video được tạo tự động bởi Media Tool", yt_privacy)
+                log(f"Đăng YouTube thành công! ID: {vid_id}")
+
+            JOBS[job_id]["done"] = True
+            JOBS[job_id]["ok"] = True
+            log("✅ TOÀN BỘ QUY TRÌNH HOÀN TẤT!")
+
+        except Exception as e:
+            log(f"❌ LỖI: {str(e)}")
+            JOBS[job_id]["done"] = True
+            JOBS[job_id]["ok"] = False
+        finally:
+            # Dọn dẹp thư mục tạm
+            try: shutil.rmtree(job_temp_dir)
+            except: pass
+
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
 # ---------- API Đăng YouTube ----------
 @bp.route("/api/youtube-upload", methods=["POST"])
 def api_youtube_upload():
@@ -36,7 +146,6 @@ def api_youtube_upload():
     if not filename:
         return jsonify({"error": "Thiếu tên file"}), 400
 
-    # Lấy đường dẫn file từ thư mục OUTPUTS
     full_path = os.path.join(OUTPUTS_DIR, filename)
     if not os.path.exists(full_path):
         return jsonify({"error": "Không tìm thấy file video"}), 404
@@ -105,11 +214,10 @@ def api_log(job_id):
         return jsonify({"error": "Job không tồn tại"}), 404
     return jsonify(job)
 
-# ---------- Chèn nhạc (Đã cập nhật nhận nhiều file) ----------
+# ---------- Chèn nhạc ----------
 @bp.route("/api/mix", methods=["POST"])
 def api_mix():
     audio_file = request.files.get("audio")
-    # NHẬN DANH SÁCH NHIỀU FILE NHẠC
     music_files = request.files.getlist("music")
     position   = request.form.get("position", "Đầu")
 
@@ -119,11 +227,9 @@ def api_mix():
     job_id = uuid.uuid4().hex
     JOBS[job_id] = {"log": [], "done": False, "ok": None, "result": None}
 
-    # Lưu file audio gốc
     audio_path = os.path.join(TEMP_DIR, f"{job_id}_audio_{audio_file.filename}")
     audio_file.save(audio_path)
 
-    # Lưu TẤT CẢ các file nhạc và lấy danh sách đường dẫn
     music_paths = []
     for idx, mf in enumerate(music_files):
         m_path = os.path.join(TEMP_DIR, f"{job_id}_music_{idx}_{mf.filename}")
@@ -132,7 +238,6 @@ def api_mix():
 
     def worker():
         mixer = AudioMixer(on_log=_log_cb(job_id))
-        # Truyền danh sách music_paths vào hàm
         result = mixer.insert_music(audio_path, music_paths, position)
         
         JOBS[job_id]["done"] = True
@@ -140,7 +245,6 @@ def api_mix():
         if result:
             JOBS[job_id]["result"] = os.path.basename(result)
             
-        # Dọn dẹp tất cả file tạm
         for p in [audio_path] + music_paths:
             try: os.remove(p)
             except: pass
@@ -159,7 +263,7 @@ def api_list_stickers():
     files.sort()
     return jsonify(files)
 
-# ---------- Ảnh → Video (Có hỗ trợ Sticker) ----------
+# ---------- Ảnh → Video ----------
 @bp.route("/api/image-to-video", methods=["POST"])
 def api_image_to_video():
     image_file = request.files.get("image")
@@ -168,7 +272,6 @@ def api_image_to_video():
     resolution = request.form.get("resolution", "1280x720")
     fps_raw    = request.form.get("fps", "1")
     
-    # Nhận thông số vị trí và kích thước
     sticker_size = int(request.form.get("sticker_size", 400))
     sticker_pos  = request.form.get("sticker_pos", "center")
 
@@ -200,8 +303,8 @@ def api_image_to_video():
             image_path, audio_path,
             resolution=resolution, fps=fps,
             sticker_path=sticker_path,
-            sticker_size=sticker_size,  # Truyền kích thước
-            sticker_pos=sticker_pos     # Truyền vị trí
+            sticker_size=sticker_size,
+            sticker_pos=sticker_pos
         )
         JOBS[job_id]["done"] = True
         JOBS[job_id]["ok"] = result is not None

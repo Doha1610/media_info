@@ -201,5 +201,92 @@ async function resetYoutubeToken() {
   }
 }
 
+// ==========================================
+// XỬ LÝ TAB TỰ ĐỘNG HÓA (ALL-IN-ONE)
+// ==========================================
+
+// Load danh sách sticker cho tab Tự động khi mở trang
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res = await fetch('/api/stickers');
+    const stickers = await res.json();
+    const select = document.getElementById('auto-sticker');
+    if (select) {
+      stickers.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) { console.error("Lỗi load sticker cho tab auto:", e); }
+});
+
+async function runAutoWorkflow() {
+  const url = document.getElementById('auto-url').value.trim();
+  const imageFile = document.getElementById('auto-image').files[0];
+  const musicFiles = document.getElementById('auto-music').files;
+  
+  if (!url || !imageFile) {
+    alert("Vui lòng nhập Link video và chọn Ảnh nền!");
+    return;
+  }
+
+  const btn = document.querySelector('#tab-auto .btn');
+  btn.disabled = true;
+  clearLog('auto-log');
+  showLog('auto-log', "🚀 Bắt đầu quy trình tự động...");
+
+  const formData = new FormData();
+  formData.append('url', url);
+  formData.append('image', imageFile);
+  
+  // Thêm nhiều file nhạc nếu có
+  for(let i=0; i<musicFiles.length; i++) {
+    formData.append('music', musicFiles[i]);
+  }
+  
+  formData.append('position', document.getElementById('auto-position').value);
+  formData.append('resolution', document.getElementById('auto-resolution').value);
+  formData.append('fps', document.getElementById('auto-fps').value);
+  formData.append('sticker_name', document.getElementById('auto-sticker').value);
+  formData.append('sticker_size', document.getElementById('auto-sticker-size').value);
+  formData.append('sticker_pos', document.getElementById('auto-sticker-pos').value);
+  
+  const autoUpload = document.getElementById('auto-upload-yt').checked;
+  formData.append('auto_upload', autoUpload);
+  if (autoUpload) {
+    formData.append('yt_title', document.getElementById('auto-yt-title').value);
+    formData.append('yt_privacy', document.getElementById('auto-yt-privacy').value);
+  }
+
+  try {
+    const res = await fetch('/api/auto-workflow', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.error) {
+      showLog('auto-log', "❌ " + data.error);
+      btn.disabled = false;
+      return;
+    }
+
+    pollJob(data.job_id, 'auto-log', (job) => {
+      if (job.ok) {
+        showLog('auto-log', "🎉 TOÀN BỘ QUY TRÌNH ĐÃ HOÀN TẤT!");
+        if (job.result) {
+          showLog('auto-log', "File Video: " + job.result);
+        }
+        refreshFileLists();
+      } else {
+        showLog('auto-log', "❌ Quy trình thất bại. Xem log phía trên để biết chi tiết.");
+      }
+      btn.disabled = false;
+    });
+  } catch (e) {
+    showLog('auto-log', "❌ Lỗi kết nối: " + e.message);
+    btn.disabled = false;
+  }
+}
+
 // Load lần đầu
 refreshFileLists();

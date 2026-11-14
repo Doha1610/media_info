@@ -15,6 +15,8 @@
     <button class="tab-btn" data-tab="mixer">🎵 Chèn Nhạc</button>
     <button class="tab-btn" data-tab="image">🖼 Ảnh → Video</button>
     <button class="tab-btn" data-tab="files">📁 File</button>
+    <!-- NÚT TAB TỰ ĐỘNG MỚI -->
+    <button class="tab-btn" data-tab="auto" style="background-color: #e11d48; color: white; border-color: #e11d48;">⚡ TỰ ĐỘNG 1 CHẠM</button>
   </nav>
 </header>
 
@@ -47,8 +49,7 @@
     </div>
 
     <div class="form-group">
-      <label>File nhạc chèn (Có thể chọn nhiều file ấn giữ nút Ctrl để chọn nhiều file):</label>
-      <!-- Thêm thuộc tính multiple để chọn nhiều file -->
+      <label>File nhạc chèn (Có thể chọn nhiều file ấn giữ nút Ctrl để có thể chọn nhiều file):</label>
       <input type="file" id="music-file" accept=".mp3,.m4a,.wav,.aac,.flac,.ogg" multiple>
     </div>
 
@@ -120,7 +121,7 @@
         <select id="image-resolution">
           <option value="1280x720">1280×720 (HD chất lượng vừa phải)</option>
           <option value="1920x1080" selected>1920×1080 (Full HD chất lượng nét - Youtube)</option>
-          <option value="854x480">854×480 (SD)</option>
+          <option value="854x480">854×480 (SD chất lượng thấp)</option>
           <option value="1080x1920">1080×1920 (Dọc - Reels/TikTok)</option>
           <option value="1080x1080">1080×1080 (Vuông - Instagram)</option>
         </select>
@@ -158,6 +159,112 @@
         <h3>🎵 Đã ghép / Video</h3>
         <ul id="list-outputs" class="file-list"></ul>
       </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: TỰ ĐỘNG HÓA (MỚI) -->
+  <section id="tab-auto" class="tab-content">
+    <h2>Quy Trình Tự Động (All-in-One)</h2>
+    <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">
+      Nhập tất cả thông tin ở đây. Tool sẽ tự động Tải -> Ghép -> Tạo Video -> Đăng YouTube mà bạn không cần làm gì thêm.
+    </p>
+
+    <div class="form-group">
+      <label>1. Link Video Cần Tải (YouTube/Facebook):</label>
+      <input type="text" id="auto-url" placeholder="https://www.youtube.com/watch?v=...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>2. File Nhạc Chèn (Tùy chọn ấn giữ nút Ctrl để có thể chọn nhiều file):</label>
+        <input type="file" id="auto-music" accept=".mp3,.m4a,.wav" multiple>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Vị trí chèn nhạc:</label>
+        <select id="auto-position">
+          <option value="Đầu">Chèn vào Đầu</option>
+          <option value="Cuối">Chèn vào Cuối</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>3. Ảnh Nền Video:</label>
+      <input type="file" id="auto-image" accept=".jpg,.png,.jpeg">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>Sticker:</label>
+        <select id="auto-sticker">
+          <option value="">-- Không dùng --</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Kích thước:</label>
+        <select id="auto-sticker-size">
+          <option value="200">Nhỏ</option>
+          <option value="400" selected>Vừa</option>
+          <option value="600">Lớn</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Vị trí:</label>
+        <select id="auto-sticker-pos">
+          <option value="left">Trái</option>
+          <option value="center" selected>Giữa</option>
+          <option value="right">Phải</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>Độ phân giải:</label>
+        <select id="auto-resolution">
+          <option value="1920x1080" selected>Full HD (Ngang - Youtube)</option>
+          <option value="1080x1920">Dọc (TikTok/Reels)</option>
+          <option value="1080x1080">Vuông</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>FPS:</label>
+        <select id="auto-fps">
+          <option value="1" selected>1 (Nhanh nhất)</option>
+          <option value="30">30 (Mượt)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="background: var(--bg-3); padding: 12px; border-radius: 8px; margin-top: 20px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; font-weight: bold;">
+        <input type="checkbox" id="auto-upload-yt" onchange="document.getElementById('auto-yt-options').style.display = this.checked ? 'block' : 'none'" style="width: 18px; height: 18px;">
+        4. Tự động đăng lên YouTube sau khi tạo xong(Có nút tích)
+      </label>
+      
+      <div id="auto-yt-options" style="display: none; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+        <div class="form-group">
+          <label>Tiêu đề Video:</label>
+          <input type="text" id="auto-yt-title" value="Video tổng hợp tự động">
+        </div>
+        <div class="form-group">
+          <label>Chế độ đăng:</label>
+          <select id="auto-yt-privacy">
+            <option value="private">Riêng tư (Private)</option>
+            <option value="public">Công khai (Public)</option>
+            <option value="unlisted">Không công khai (Unlisted ẩn khỏi kênh nhưng có link thì chia sẻ bạn bè xem được)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn primary" onclick="runAutoWorkflow()" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 20px; background-color: #e11d48;">
+      ⚡ BẮT ĐẦU CHẠY TỰ ĐỘNG
+    </button>
+
+    <div class="log-box" style="margin-top: 20px;">
+      <div class="log-header">Tiến trình tổng hợp</div>
+      <pre id="auto-log"></pre>
     </div>
   </section>
 
