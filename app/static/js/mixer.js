@@ -2,24 +2,30 @@
 
 async function mixAudio() {
   const audioFile = document.getElementById('audio-file').files[0];
-  const musicFile = document.getElementById('music-file').files[0];
+  // SỬ DỤNG .files ĐỂ LẤY TẤT CẢ CÁC FILE ĐÃ CHỌN (Mảng các file)
+  const musicFiles = document.getElementById('music-file').files; 
   const position  = document.querySelector('input[name="position"]:checked').value;
 
-  if (!audioFile || !musicFile) {
-    alert("Vui lòng chọn đủ 2 file!");
+  if (!audioFile || musicFiles.length === 0) {
+    alert("Vui lòng chọn File Audio gốc và ít nhất 1 File nhạc chèn!");
     return;
   }
 
   clearLog('mix-log');
   document.getElementById('mix-result').classList.add('hidden');
-  showLog('mix-log', `🎵 Đang ghép nhạc vào ${position.toLowerCase()}...`);
+  showLog('mix-log', `🎵 Đang ghép ${musicFiles.length} file nhạc vào ${position.toLowerCase()}...`);
 
   const btn = document.querySelector('#tab-mixer .btn');
   btn.disabled = true;
 
   const formData = new FormData();
   formData.append('audio', audioFile);
-  formData.append('music', musicFile);
+  
+  // LẶP QUA TỪNG FILE NHẠC VÀ THÊM VÀO FORMDATA
+  for (let i = 0; i < musicFiles.length; i++) {
+    formData.append('music', musicFiles[i]);
+  }
+  
   formData.append('position', position);
 
   try {

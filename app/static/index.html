@@ -27,7 +27,6 @@
       <input type="text" id="url-input" placeholder="https://www.youtube.com/watch?v=...">
     </div>
     
-    <!-- Chỉ 1 nút duy nhất -->
     <div class="form-group btn-row">
       <button class="btn primary" onclick="downloadMedia('audio')">🎵 Tải Nhạc (MP3)</button>
     </div>
@@ -48,8 +47,9 @@
     </div>
 
     <div class="form-group">
-      <label>File nhạc chèn:</label>
-      <input type="file" id="music-file" accept=".mp3,.m4a,.wav,.aac,.flac,.ogg">
+      <label>File nhạc chèn (Có thể chọn nhiều file ấn giữ nút Ctrl để chọn nhiều file):</label>
+      <!-- Thêm thuộc tính multiple để chọn nhiều file -->
+      <input type="file" id="music-file" accept=".mp3,.m4a,.wav,.aac,.flac,.ogg" multiple>
     </div>
 
     <div class="form-group">
@@ -87,12 +87,10 @@
       <input type="file" id="image-audio-file" accept=".mp3,.m4a,.wav,.aac,.flac,.ogg">
     </div>
 
-    <!-- MỤC CHỌN STICKER VÀ TÙY CHỈNH VỊ TRÍ -->
     <div class="form-group">
       <label>Chọn Sticker từ thư viện (Tùy chọn):</label>
       <select id="sticker-select">
         <option value="">-- Không dùng sticker --</option>
-        <!-- Các option sẽ được load bằng file image_video.js -->
       </select>
     </div>
 
@@ -120,8 +118,8 @@
       <div class="form-group" style="flex:1;">
         <label>Độ phân giải:</label>
         <select id="image-resolution">
-          <option value="1280x720">1280×720 (HD)</option>
-          <option value="1920x1080" selected>1920×1080 (Full HD)</option>
+          <option value="1280x720">1280×720 (HD chất lượng vừa phải)</option>
+          <option value="1920x1080" selected>1920×1080 (Full HD chất lượng nét - Youtube)</option>
           <option value="854x480">854×480 (SD)</option>
           <option value="1080x1920">1080×1920 (Dọc - Reels/TikTok)</option>
           <option value="1080x1080">1080×1080 (Vuông - Instagram)</option>
@@ -162,6 +160,50 @@
       </div>
     </div>
   </section>
+
+  <!-- MODAL ĐĂNG YOUTUBE (Cửa sổ nổi) -->
+  <div id="yt-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);">
+    <div class="modal-content" style="background-color: var(--bg-2); margin: 5% auto; padding: 20px; border: 1px solid var(--border); width: 500px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+      <span class="close-btn" onclick="document.getElementById('yt-modal').style.display='none'" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+      <h2 style="margin-top:0;">Đăng Video Lên YouTube</h2>
+      
+      <div class="form-group">
+        <label>Tiêu đề Video:</label>
+        <input type="text" id="yt-title" value="Video của tôi" style="width: 100%;">
+      </div>
+
+      <div class="form-group">
+        <label>Mô tả:</label>
+        <textarea id="yt-desc" rows="3" style="width: 100%; background: var(--bg-3); color: white; border: 1px solid var(--border); border-radius: 6px; padding: 8px;"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Chế độ:</label>
+        <select id="yt-privacy" onchange="toggleSchedule()">
+          <option value="private" selected>Riêng tư (Private)</option>
+          <option value="public">Công khai (Public)</option>
+          <option value="unlisted">Không công khai (Unlisted)</option>
+        </select>
+      </div>
+
+      <!-- Phần chọn lịch (chỉ hiện khi chọn Private) -->
+      <div id="yt-schedule-group" class="form-group">
+        <label>Đặt lịch đăng (Tùy chọn):</label>
+        <input type="datetime-local" id="yt-schedule" style="width: 100%; padding: 8px; background: var(--bg-3); color: white; border: 1px solid var(--border); border-radius: 6px;">
+        <small style="color:#94a3b8; font-size:11px;">Nếu bỏ trống, video sẽ đăng ngay ở chế độ Riêng tư.</small>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button class="btn primary" id="btn-submit-yt" onclick="submitYoutube()">🚀 Bắt đầu Đăng</button>
+        <button class="btn secondary" onclick="resetYoutubeToken()">🔄 Đổi Tài Khoản Google</button>
+      </div>
+
+      <div class="log-box" style="margin-top: 15px;">
+        <div class="log-header">Tiến trình Upload</div>
+        <pre id="yt-log" style="max-height: 150px; overflow-y: auto;"></pre>
+      </div>
+    </div>
+  </div>
 </main>
 
 <footer>

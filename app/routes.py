@@ -2,6 +2,7 @@
 import os
 import uuid
 import threading
+from app.core.youtube_uploader import YouTubeUploader
 from flask import Blueprint, request, jsonify, send_file, send_from_directory
 from app.config import (
     DOWNLOADS_DIR, OUTPUTS_DIR, TEMP_DIR, STICKERS_DIR,
@@ -21,6 +22,54 @@ def _log_cb(job_id):
         JOBS.setdefault(job_id, {"log": [], "done": False, "ok": None})
         JOBS[job_id]["log"].append(msg)
     return _cb
+
+# ---------- API Đăng YouTube ----------
+@bp.route("/api/youtube-upload", methods=["POST"])
+def api_youtube_upload():
+    data = request.get_json()
+    filename = data.get("filename")
+    title = data.get("title", "Video của tôi")
+    description = data.get("description", "")
+    privacy = data.get("privacy", "private")
+    schedule_time = data.get("schedule_time") # Định dạng: "2026-12-31T15:00:00+07:00"
+
+    if not filename:
+        return jsonify({"error": "Thiếu tên file"}), 400
+
+    # Lấy đường dẫn file từ thư mục OUTPUTS
+    full_path = os.path.join(OUTPUTS_DIR, filename)
+    if not os.path.exists(full_path):
+        return jsonify({"error": "Không tìm thấy file video"}), 404
+
+    job_id = uuid.uuid4().hex
+    JOBS[job_id] = {"log": [], "done": False, "ok": None}
+
+    def worker():
+        try:
+            uploader = YouTubeUploader(on_log=_log_cb(job_id))
+            video_id = uploader.upload_video(full_path, title, description, privacy, schedule_time)
+            JOBS[job_id]["done"] = True
+            JOBS[job_id]["ok"] = True
+            JOBS[job_id]["video_id"] = video_id
+        except Exception as e:
+            JOBS[job_id]["log"].append(f"Lỗi: {str(e)}")
+            JOBS[job_id]["done"] = True
+            JOBS[job_id]["ok"] = False
+
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+# ---------- API Đổi Tài Khoản Google (Xóa token) ----------
+@bp.route("/api/youtube-reset-token", methods=["POST"])
+def api_youtube_reset_token():
+    token_path = "token.json"
+    if os.path.exists(token_path):
+        try:
+            os.remove(token_path)
+            return jsonify({"ok": True, "message": "Đã xóa token thành công"})
+        except Exception as e:
+            return jsonify({"ok": False, "message": f"Lỗi khi xóa: {str(e)}"}), 500
+    return jsonify({"ok": False, "message": "Không có token để xóa"})
 
 # ---------- Trang chủ ----------
 @bp.route("/")
@@ -56,32 +105,43 @@ def api_log(job_id):
         return jsonify({"error": "Job không tồn tại"}), 404
     return jsonify(job)
 
-# ---------- Chèn nhạc ----------
+# ---------- Chèn nhạc (Đã cập nhật nhận nhiều file) ----------
 @bp.route("/api/mix", methods=["POST"])
 def api_mix():
     audio_file = request.files.get("audio")
-    music_file = request.files.get("music")
+    # NHẬN DANH SÁCH NHIỀU FILE NHẠC
+    music_files = request.files.getlist("music")
     position   = request.form.get("position", "Đầu")
 
-    if not audio_file or not music_file:
-        return jsonify({"error": "Thiếu file"}), 400
+    if not audio_file or not music_files or music_files[0].filename == '':
+        return jsonify({"error": "Thiếu file audio gốc hoặc nhạc chèn"}), 400
 
     job_id = uuid.uuid4().hex
     JOBS[job_id] = {"log": [], "done": False, "ok": None, "result": None}
 
+    # Lưu file audio gốc
     audio_path = os.path.join(TEMP_DIR, f"{job_id}_audio_{audio_file.filename}")
-    music_path = os.path.join(TEMP_DIR, f"{job_id}_music_{music_file.filename}")
     audio_file.save(audio_path)
-    music_file.save(music_path)
+
+    # Lưu TẤT CẢ các file nhạc và lấy danh sách đường dẫn
+    music_paths = []
+    for idx, mf in enumerate(music_files):
+        m_path = os.path.join(TEMP_DIR, f"{job_id}_music_{idx}_{mf.filename}")
+        mf.save(m_path)
+        music_paths.append(m_path)
 
     def worker():
         mixer = AudioMixer(on_log=_log_cb(job_id))
-        result = mixer.insert_music(audio_path, music_path, position)
+        # Truyền danh sách music_paths vào hàm
+        result = mixer.insert_music(audio_path, music_paths, position)
+        
         JOBS[job_id]["done"] = True
         JOBS[job_id]["ok"] = result is not None
         if result:
             JOBS[job_id]["result"] = os.path.basename(result)
-        for p in (audio_path, music_path):
+            
+        # Dọn dẹp tất cả file tạm
+        for p in [audio_path] + music_paths:
             try: os.remove(p)
             except: pass
 
